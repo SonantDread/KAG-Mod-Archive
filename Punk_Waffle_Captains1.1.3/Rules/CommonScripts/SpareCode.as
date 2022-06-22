@@ -1,0 +1,277 @@
+#include "Logging.as";
+
+string[] checklist = {"Wins", "Losses", "Winning_Captain", "Losing_Captain", "Flags", "Kills", "Deaths", "Elo"}; 
+
+int getStats( CRules@ this, CPlayer@ player, string SpecifiedStat)
+{
+	int StatNumber;
+	if (player !is null){
+	StatNumber = player.get_u32(SpecifiedStat);
+	}
+	return StatNumber;
+
+
+}
+
+
+void setOffi( CRules@ this )
+{
+	if(this.hasTag("Official")){
+		this.Untag("Official");
+		this.Sync("Official", true);
+
+		tcpr("[USCaptains] Wins: ");
+		getNet().server_SendMsg( "Stopping official match" );
+	}
+	else{
+		this.Tag("Official");
+		this.Sync("Official", true);
+		string[] BlueTeam;
+		string[] RedTeam;
+		for(int i=0; i < getPlayersCount(); i++)
+		{
+			CPlayer@ myplayer = getPlayer(i);
+			if (myplayer !is null) {
+				print(i+myplayer.getUsername()+myplayer.getTeamNum());
+				if (myplayer.getTeamNum() == 0) {
+			        BlueTeam.push_back(myplayer.getUsername());
+			    }
+			    else if (myplayer.getTeamNum() == 1) {
+					RedTeam.push_back(myplayer.getUsername());
+			    }
+		   	}
+		}
+		//sets proper teams
+		print("[USCaptains] Teams: " + Flatten(BlueTeam) + " 0" + "+" + Flatten(RedTeam) + " 1" );
+		getNet().server_SendMsg( "Starting official match" );
+		if(this.get_bool("can choose team")){
+				lockteams( this );
+		}
+		//print("[USCaptains] Connect: ");
+	}
+}
+
+int[] playerNumlist( CRules@ this){
+
+    int[] orders;
+    int team;
+    for(int i=0; i < getPlayersCount(); i++)
+    {
+        orders.push_back(i);
+    }
+    return orders;
+}
+
+
+
+void lockteams( CRules@ this )
+{
+	if (this.get_bool("can choose team"))
+	{
+		this.set_bool("can choose team", false);
+		this.Sync("can choose team", true);
+		getNet().server_SendMsg( "swapping teams is disabled!" );
+	}
+	else
+	{
+		this.set_bool("can choose team", true);
+		this.Sync("can choose team", true);
+		getNet().server_SendMsg( "swapping teams is enabled!" );
+	}
+}
+
+shared void specificStatUpdate(CRules@ this, string playerName, string statName )
+{
+	int placeholder;
+	CPlayer@ player = getPlayerByUsername(playerName);
+	if (player !is null){
+		placeholder = player.get_u32(statName);
+		player.set_u32(statName, placeholder + 1);
+		player.Sync(statName, true);
+	}	
+	else{
+		tcpr("[USCaptains] " + statName + ": " + playerName);
+
+	}
+}
+
+
+void teamEloSet(CRules@ this, string teamEloNumbers)
+{
+
+	this.set_string("teamElos", teamEloNumbers);
+	this.Sync("teamElos", true);
+	
+}
+
+int[] teamEloGet(CRules@ this)
+{
+	
+	int[] teamElos(2);
+	string[] stringNumbers = this.get_string("teamElos").split(" ");
+	for(int i=0; i < stringNumbers.size(); i++){
+		teamElos[i] = parseInt(stringNumbers[i]);
+	}
+	return teamElos;
+}
+
+
+
+
+shared void officialMatchHandling(CRules@ this, int team){
+	
+	string[] checklist = {"Wins", "Losses", "Winning_Captain", "Losing_Captain", "Flags", "Kills", "Deaths", "Elo"};
+	this.SetGlobalMessage("{WINNING_MSG} wins the game!");
+
+
+	//declaring values and getting them with funcs
+	string Winning_Captain = captGrab(this, Maths::Abs(team - 1));
+	string Losing_Captain =  captGrab(this, team);
+	string[] WinningTeam = teamGrab(this, Maths::Abs(team - 1));
+	string[] LosingTeam = teamGrab(this, team);
+
+	print("winner =" +Winning_Captain);
+	//tcprmsgs
+	
+	tcpr("[USCaptains] Wins: " + Maths::Abs(team - 1) + "");
+	//tcpr("[USCaptains] Losses: " + Flatten(LosingTeam));
+	//tcpr("[USCaptains] endGame: " + Maths::Abs(team - 1) + "");
+	if (Winning_Captain != "" && Losing_Captain != ""){
+		//winMsg = Winning_Captain + " lead " + this.getTeam(Maths::Abs(team - 1)).getName();
+		specificStatUpdate(this, Winning_Captain, "Winning_Captain" );
+		specificStatUpdate(this, Losing_Captain, "Losing_Captain" );
+	}
+	//endGame Messages
+
+	this.AddGlobalMessageReplacement("WINNING_MSG", this.getTeam(Maths::Abs(team - 1)).getName() + "");
+	getNet().server_SendMsg( "Ending official match" );
+
+
+	/*CBitStream params;
+	this.SendCommand(this.getCommandID('update all'), params);*/
+	for (int i = 0; i < getPlayersCount(); i++){
+		CPlayer@ statPlayer = getPlayer(i);
+		if (statPlayer !is null){
+			if (statPlayer.getTeamNum() == 0 || statPlayer.getTeamNum() == 1){
+				int result = (statPlayer.getTeamNum() != team ? 0 : 1);
+				specificStatUpdate(this, statPlayer.getUsername(), checklist[result]);
+				tcpr("[USCaptains] updateBackend: " + statPlayer.getUsername() + "+" + backendUpdate(this, statPlayer));
+			}
+		}
+	}
+
+	this.Untag("Official");
+	this.Sync("Official", true);
+
+}
+
+shared string captGrab(CRules@ this, int team){
+	string stringName = "captain " + (team == 0 ? "blue" : "red");
+	return this.get_string(stringName);
+}
+
+shared string[] teamGrab(CRules@ this, int team){
+string[] Team;
+
+for (u32 i=0; i < getPlayersCount(); i++)
+	{	
+
+		CPlayer@ myplayer = getPlayer(i);
+		if(myplayer != null)
+		{	
+			if(myplayer.getTeamNum() == team)
+			{
+				Team.push_back(myplayer.getUsername());
+			}
+		}      
+	}
+    return Team;
+
+}
+shared string Flatten(string[]@ teamlist){
+	string flatList;
+	if (teamlist.size() >= 1) {
+		flatList += teamlist[0] + ((teamlist.size() > 1) ? " " : "");
+		for (uint i = 1; i < teamlist.size(); i++) {
+			flatList += teamlist[i] + ((i < teamlist.size() - 1) ? " " : "");
+		}
+	}
+		return flatList;
+}
+CPlayer@ GetPlayerByIdent(string ident) {
+    // Takes an identifier, which is a prefix of the player's character name
+    // or username. If there is 1 matching player then they are returned.
+    // If 0 or 2+ then a warning is logged.
+    ident = ident.toLower();
+    log("GetPlayerByIdent", "ident = " + ident);
+    CPlayer@[] matches; // players matching ident
+
+    for (int i=0; i < getPlayerCount(); i++) {
+        CPlayer@ p = getPlayer(i);
+        if (p is null) continue;
+
+        string username = p.getUsername().toLower();
+        string charname = p.getCharacterName().toLower();
+
+        if (username == ident || charname == ident) {
+            log("GetPlayerByIdent", "exact match found: " + p.getUsername());
+            return p;
+        }
+        else if (username.find(ident) >= 0 || charname.find(ident) >= 0) {
+            matches.push_back(p);
+        }
+    }
+
+    if (matches.length == 1) {
+        log("GetPlayerByIdent", "1 match found: " + matches[0].getUsername());
+        return matches[0];
+    }
+    else if (matches.length == 0) {
+        logBroadcast("GetPlayerByIdent", "Couldn't find anyone called " + ident);
+    }
+    else {
+        logBroadcast("GetPlayerByIdent", "Multiple people are called " + ident + ", be more specific.");
+    }
+
+    return null;
+}
+
+void drawStatCard(CPlayer@ player, Vec2f pos)
+{
+	if(player!is null)
+	{
+		GUI::SetFont("menu");
+
+		f32 stepheight = 8;
+		Vec2f atopleft = pos;
+		atopleft.x -= stepheight;
+		atopleft.y -= stepheight*2;
+
+		string statName;
+        GUI::DrawPane(atopleft, Vec2f(atopleft.x + 180, (atopleft.y + (checklist.size() * 26))));
+		GUI::DrawText(player.getUsername(), Vec2f(pos.x + 2, atopleft.y+10), SColor(0xffffffff));
+		atopleft.y += 40;
+		for (int i; i < checklist.size(); i++){
+			if(i == 2 or i == 3){
+				statName = (i == 2 ? "Capt Wins" : "Capt Losses");
+			}
+			else{
+				statName = checklist[i];
+			}
+			GUI::DrawText(statName, Vec2f(pos.x + 2, (atopleft.y+(18*i))), SColor(0xffffffff));
+			GUI::DrawText(getStats( getRules(), player, checklist[i])+"", Vec2f(pos.x + 110, atopleft.y+(18*i)), SColor(0xffffffff));
+		}
+
+	}
+
+}
+
+shared string backendUpdate(CRules@ this, CPlayer@ player){
+	string statList;
+	string[] checklist = {"Wins", "Losses", "Winning_Captain", "Losing_Captain", "Flags", "Kills", "Deaths", "Elo"};
+	for(int i=0; i < (checklist.size() - 1); i++){
+		statList += player.get_u32(checklist[i]) + (i != (checklist.size() - 2) ? " " : "");
+	}
+	return statList;
+}
+

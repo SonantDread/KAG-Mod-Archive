@@ -1,0 +1,41 @@
+#include "SpaceshipGlobal.as"
+
+void onInit( CBlob@ this )
+{
+	this.Tag(smallTag);
+}
+// character was placed in crate
+void onThisAddToInventory(CBlob@ this, CBlob@ inventoryBlob)
+{
+	this.doTickScripts = true; // run scripts while in crate
+	this.getMovement().server_SetActive(true);
+}
+
+bool doesCollideWithBlob(CBlob@ this, CBlob@ blob)
+{
+	CShape@ shape = this.getShape();
+	CShape@ oShape = blob.getShape();
+	if (shape is null || oShape is null)
+	{
+		error("error: missing shape in runner doesCollideWithBlob");
+		return false;
+	}
+
+	int thisTeamNum = this.getTeamNum();
+	int targetTeamNum = blob.getTeamNum();
+
+	bool targetIsMedium = blob.hasTag(mediumTag);
+	bool targetIsBig = blob.hasTag(bigTag);
+
+	if (thisTeamNum == targetTeamNum)
+	{
+		return false;
+	}
+
+	if (targetIsMedium || targetIsBig)
+	{
+		return false;
+	}
+
+	return true;
+}

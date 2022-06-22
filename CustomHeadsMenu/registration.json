@@ -1,0 +1,12 @@
+{
+    "description": "This mod allows server admins to add their custom heads to a server. You can select a new head from the ESC menu.", 
+    "devHash": "bc9a8475b034d353aa42e9842e87af420373170e8333f86c006b5cf4f6eac5a368b4f7c5e105795697563a37dbc97ebc45234b735a76e600cc033b46fef6f6fa", 
+    "developer": "Diprog", 
+    "gameID": 1, 
+    "lastBuild": "2018-06-08 13:41:44", 
+    "modID": "1fe04aef-e506-4344-9d8a-45f39f4388b3", 
+    "name": "Custom Heads Menu", 
+    "nameURL": "chm", 
+    "packageType": "full", 
+    "registered": "2018-06-08 09:55:21"
+}

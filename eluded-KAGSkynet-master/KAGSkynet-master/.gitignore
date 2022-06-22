@@ -1,0 +1,4 @@
+*.swp
+server/data/*
+*.pyc
+secrets.sh
